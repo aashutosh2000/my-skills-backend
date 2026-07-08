@@ -9,6 +9,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+const { protect } = require('./middleware/authMiddleware');
 const Skill = require('./models/Skill'); 
 const User = require('./models/User'); // 👈 सारे मॉडल्स अब .env लोड होने के बाद आएंगे
 
@@ -41,7 +42,7 @@ app.get('/', (req, res) => {
 });
 
 // GET Route: डेटाबेस से सारा डेटा वापस मंगाने के लिए
-app.get('/api/skills', async (req, res) => {
+app.get('/api/skills', protect, async (req, res) => {
     try {
         const allSkills = await Skill.find(); 
         res.json(allSkills);
@@ -51,7 +52,7 @@ app.get('/api/skills', async (req, res) => {
 });
 
 // POST Route: असली डेटाबेस में नया डेटा सेव करने के लिए
-app.post('/api/skills', async (req, res) => {
+app.post('/api/skills', protect, async (req, res) => {
     try {
         const newSkill = new Skill(req.body); 
         await newSkill.save(); 
@@ -62,7 +63,7 @@ app.post('/api/skills', async (req, res) => {
 });
 
 // DELETE Route: डेटाबेस से डेटा डिलीट करने के लिए
-app.delete('/api/skills/:id', async (req, res) => {
+app.delete('/api/skills/:id', protect, async (req, res) => {
     try {
         const deletedSkill = await Skill.findByIdAndDelete(req.params.id);
         if (!deletedSkill) {
@@ -75,7 +76,7 @@ app.delete('/api/skills/:id', async (req, res) => {
 });
 
 // UPDATE Route: किसी स्किल का स्टेटस बदलने के लिए
-app.put('/api/skills/:id', async (req, res) => {
+app.put('/api/skills/:id', protect, async (req, res) => {
     try {
         const updatedSkill = await Skill.findByIdAndUpdate(
             req.params.id, 
