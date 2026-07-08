@@ -1,0 +1,130 @@
+require('dotenv').config(); // 👈 यह हमेशा नंबर 1 पर ही होनी चाहिए!
+
+const crypto = require('crypto'); 
+global.crypto = crypto; 
+
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors'); 
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
+const Skill = require('./models/Skill'); 
+const User = require('./models/User'); // 👈 सारे मॉडल्स अब .env लोड होने के बाद आएंगे
+
+const app = express();
+app.use(cors()); 
+app.use(express.json());
+
+// पोर्ट और डेटाबेस की वैल्यू .env फाइल से आएगी
+const PORT = process.env.PORT || 3000;
+const dbURI = process.env.MONGODB_URI; 
+
+const dns = require('dns');
+
+dns.resolveSrv('_mongodb._tcp.cluster0.uyjw0sz.mongodb.net', (err, addresses) => {
+    console.log("DNS Error:", err);
+    console.log("Addresses:", addresses);
+});
+
+// मोंगोडीबी से कनेक्शन
+mongoose.connect(dbURI)
+  .then(() => console.log('लोकल MongoDB सफलतापूर्वक कनेक्ट हो गया है! ✅'))
+  .catch(err => {
+      console.log('Database Connection Error:');
+      console.error(err.stack);
+  });
+
+// होम पेज का रूट
+app.get('/', (req, res) => {
+    res.send("<h1>नमस्ते आशुतोष! आपका सुरक्षित एक्सप्रेस बैकएंड सर्वर लाइव है! 🚀</h1>"); 
+});
+
+// GET Route: डेटाबेस से सारा डेटा वापस मंगाने के लिए
+app.get('/api/skills', async (req, res) => {
+    try {
+        const allSkills = await Skill.find(); 
+        res.json(allSkills);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    } 
+});
+
+// POST Route: असली डेटाबेस में नया डेटा सेव करने के लिए
+app.post('/api/skills', async (req, res) => {
+    try {
+        const newSkill = new Skill(req.body); 
+        await newSkill.save(); 
+        res.json({ message: "डेटाबेस में 😊 स्किल सुरक्षित हो गई! ✅", data: newSkill });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE Route: डेटाबेस से डेटा डिलीट करने के लिए
+app.delete('/api/skills/:id', async (req, res) => {
+    try {
+        const deletedSkill = await Skill.findByIdAndDelete(req.params.id);
+        if (!deletedSkill) {
+            return res.status(404).json({ message: "स्किल नहीं मिली!" });
+        }
+        res.json({ message: "डेटाबेस से स्किल सफलतापूर्वक डिलीट हो गई! ❌" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// UPDATE Route: किसी स्किल का स्टेटस बदलने के लिए
+app.put('/api/skills/:id', async (req, res) => {
+    try {
+        const updatedSkill = await Skill.findByIdAndUpdate(
+            req.params.id, 
+            { status: req.body.status }, 
+            { new: true }
+        );
+        if (!updatedSkill) {
+            return res.status(404).json({ message: "स्किल नहीं मिली!" });
+        }
+        res.json({ message: "स्टेटस सफलतापूर्वक अपडेट हो गया! 🔄", data: updatedSkill });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// SIGNUP ROUTE: नया यूजर बनाने के लिए
+app.post('/api/signup', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new User({ email, password: hashedPassword });
+        await newUser.save();
+        res.status(201).json({ message: "यूजर बन गया! अब लॉगिन करें।" });
+    } catch (err) {
+        res.status(500).json({ error: "साइनअप में दिक्कत आई।" });
+    }
+});
+
+// LOGIN ROUTE: लॉगिन करने और टोकन पाने के लिए
+app.post('/api/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const user = await User.findOne({ email });
+        
+        if (user && await bcrypt.compare(password, user.password)) {
+            const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+            res.json({ token });
+        } else {
+            res.status(401).json({ error: "गलत ईमेल या पासवर्ड!" });
+        }
+    } catch (err) {
+        res.status(500).json({ error: "लॉगिन में दिक्कत आई।" });
+    }
+});
+
+// सर्वर को चालू करें
+app.listen(PORT, () => {
+    console.log(`=========================================`);
+    console.log(`सुरक्षित सर्वर सफलतापूर्वक चालू हो गया है!`);
+    console.log(`यहाँ क्लिक करके देखें: http://localhost:${PORT}`);
+    console.log(`=========================================`);
+});
