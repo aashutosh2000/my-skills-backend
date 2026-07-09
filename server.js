@@ -10,6 +10,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const { protect } = require('./middleware/authMiddleware');
+const upload = require('./config/cloudinaryConfig');
 const Skill = require('./models/Skill'); 
 const User = require('./models/User'); // 👈 सारे मॉडल्स अब .env लोड होने के बाद आएंगे
 
@@ -39,6 +40,35 @@ mongoose.connect(dbURI)
 // होम पेज का रूट
 app.get('/', (req, res) => {
     res.send("<h1>नमस्ते आशुतोष! आपका सुरक्षित एक्सप्रेस बैकएंड सर्वर लाइव है! 🚀</h1>"); 
+});
+
+// POST Route: यूजर की प्रोफाइल फोटो अपलोड करने के लिए (यह रूट पूरी तरह सुरक्षित है)
+app.post('/api/user/upload-profile', protect, upload.single('image'), async (req, res) => {
+    try {
+        // चेक करें कि फाइल आई भी है या नहीं
+        if (!req.file) {
+            return res.status(400).json({ error: 'कृपया कोई इमेज फाइल चुनें!' });
+        }
+
+        // req.file.path में क्लाउडीनरी का लाइव इमेज URL होता है
+        const imageUrl = req.file.path;
+
+        // टोकन से मिली userId के आधार पर यूजर को ढूंढें और उसकी profileImage अपडेट करें
+        const updatedUser = await User.findByIdAndUpdate(
+            req.user.userId, 
+            { profileImage: imageUrl }, 
+            { new: true }
+        ).select('-password'); // पासवर्ड को रिस्पॉन्स में न भेजें (सुरक्षा के लिए)
+
+        res.json({ 
+            message: 'प्रोफाइल फोटो सफलतापूर्वक अपलोड हो गई! 📸', 
+            profileImage: imageUrl,
+            user: updatedUser
+        });
+    } catch (err) {
+        console.error('अपलोड एरर:', err);
+        res.status(500).json({ error: 'इमेज अपलोड करने में दिक्कत आई।' });
+    }
 });
 
 // GET Route: डेटाबेस से सारा डेटा वापस मंगाने के लिए
@@ -105,7 +135,7 @@ app.post('/api/signup', async (req, res) => {
     }
 });
 
-// LOGIN ROUTE: लॉगिन करने और टोकन पाने के लिए
+// LOGIN ROUTE: लॉगिन करने और टोकन + फोटो पाने के लिए
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -113,7 +143,11 @@ app.post('/api/login', async (req, res) => {
         
         if (user && await bcrypt.compare(password, user.password)) {
             const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-            res.json({ token });
+            // टोकन के साथ यूजर की प्रोफाइल इमेज भी वापस भेज रहे हैं
+            res.json({ 
+                token, 
+                profileImage: user.profileImage || '' 
+            });
         } else {
             res.status(401).json({ error: "गलत ईमेल या पासवर्ड!" });
         }
