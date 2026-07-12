@@ -156,6 +156,17 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// 🌐 पोर्टफोलियो के लिए पब्लिक राउट (इसमें टोकन नहीं लगेगा)
+app.get('/api/skills/public', async (req, res) => {
+  try {
+    const Skill = require('./models/Skill'); // मॉडल इम्पोर्ट करें
+    const skills = await Skill.find();
+    res.json(skills);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // सर्वर को चालू करें
 app.listen(PORT, () => {
     console.log(`=========================================`);
