@@ -45,20 +45,17 @@ app.get('/', (req, res) => {
 // POST Route: यूजर की प्रोफाइल फोटो अपलोड करने के लिए (यह रूट पूरी तरह सुरक्षित है)
 app.post('/api/user/upload-profile', protect, upload.single('image'), async (req, res) => {
     try {
-        // चेक करें कि फाइल आई भी है या नहीं
         if (!req.file) {
             return res.status(400).json({ error: 'कृपया कोई इमेज फाइल चुनें!' });
         }
 
-        // req.file.path में क्लाउडीनरी का लाइव इमेज URL होता है
         const imageUrl = req.file.path;
 
-        // टोकन से मिली userId के आधार पर यूजर को ढूंढें और उसकी profileImage अपडेट करें
         const updatedUser = await User.findByIdAndUpdate(
             req.user.userId, 
             { profileImage: imageUrl }, 
             { new: true }
-        ).select('-password'); // पासवर्ड को रिस्पॉन्स में न भेजें (सुरक्षा के लिए)
+        ).select('-password');
 
         res.json({ 
             message: 'प्रोफाइल फोटो सफलतापूर्वक अपलोड हो गई! 📸', 
@@ -105,18 +102,21 @@ app.delete('/api/skills/:id', protect, async (req, res) => {
     }
 });
 
-// UPDATE Route: किसी स्किल का स्टेटस बदलने के लिए
+// 🔄 UPDATE Route: अब यह स्किल का नाम, कैटेगरी और स्टेटस तीनों चीज़ें अपडेट कर सकता है!
 app.put('/api/skills/:id', protect, async (req, res) => {
     try {
+        const { name, status, category } = req.body; // 📦 रिक्वेस्ट बॉडी से तीनों डेटा निकाला
+        
         const updatedSkill = await Skill.findByIdAndUpdate(
             req.params.id, 
-            { status: req.body.status }, 
+            { name, status, category }, // 👈 यहाँ अब तीनों चीज़ें डेटाबेस में अपडेट होंगी
             { new: true }
         );
+        
         if (!updatedSkill) {
             return res.status(404).json({ message: "स्किल नहीं मिली!" });
         }
-        res.json({ message: "स्टेटस सफलतापूर्वक अपडेट हो गया! 🔄", data: updatedSkill });
+        res.json({ message: "स्किल सफलतापूर्वक अपडेट हो गई! 🔄", data: updatedSkill });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -143,7 +143,6 @@ app.post('/api/login', async (req, res) => {
         
         if (user && await bcrypt.compare(password, user.password)) {
             const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-            // टोकन के साथ यूजर की प्रोफाइल इमेज भी वापस भेज रहे हैं
             res.json({ 
                 token, 
                 profileImage: user.profileImage || '' 
@@ -159,7 +158,7 @@ app.post('/api/login', async (req, res) => {
 // 🌐 पोर्टफोलियो के लिए पब्लिक राउट (इसमें टोकन नहीं लगेगा)
 app.get('/api/skills/public', async (req, res) => {
   try {
-    const Skill = require('./models/Skill'); // मॉडल इम्पोर्ट करें
+    const Skill = require('./models/Skill'); 
     const skills = await Skill.find();
     res.json(skills);
   } catch (err) {
