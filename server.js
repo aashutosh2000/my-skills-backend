@@ -9,7 +9,10 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+
 const { protect } = require('./middleware/authMiddleware');
+// बाकी require स्टेटमेंट्स के नीचे इसे जोड़ें
+const { GoogleGenAI } = require('@google/generative-ai');
 const upload = require('./config/cloudinaryConfig');
 const Skill = require('./models/Skill'); 
 const User = require('./models/User'); // 👈 सारे मॉडल्स अब .env लोड होने के बाद आएंगे
@@ -164,6 +167,37 @@ app.get('/api/skills/public', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// 🤖 AI Route: स्किल्स का विश्लेषण करके अगली बेस्ट स्किल का सुझाव पाना
+app.post('/api/ai-suggestions', protect, async (req, res) => {
+    try {
+        // 1. डेटाबेस से यूजर की सभी स्किल्स निकालें
+        const skills = await Skill.find();
+        
+        if (!skills || skills.length === 0) {
+            return res.json({ suggestion: "अभी आपके डैशबोर्ड में कोई स्किल नहीं है। कृपया पहले कुछ स्किल्स जोड़ें ताकि AI उनका विश्लेषण कर सके! 💡" });
+        }
+
+        // 2. स्किल्स को टेक्स्ट फॉर्मेट में व्यवस्थित करें
+        const skillListText = skills.map(s => `- ${s.name} (${s.category} - ${s.status})`).join('\n');
+
+        // 3. Gemini AI को इनिशियलाइज करें
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        
+        const prompt = `You are an expert MERN stack tech lead and career coach. Here is the current list of IT skills of candidate Ashutosh:\n${skillListText}\n\nBased on these skills, analyze the gaps and strictly suggest the top 2 highly relevant next tech skills he must learn in 2026 to get a high-paying software engineer job. Give your answer in clean, short, professional Hinglish (Hindi + English mix) within 4-5 bullet points. Keep it super actionable.`;
+
+        // 4. Gemini 2.5 Flash मॉडल से रिस्पॉन्स जनरेट करें
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+
+        res.json({ suggestion: response.text });
+    } catch (err) {
+        console.error('Gemini AI Error:', err);
+        res.status(500).json({ error: 'एआई से सुझाव प्राप्त करने में कुछ समस्या आई।' });
+    }
 });
 
 // सर्वर को चालू करें
