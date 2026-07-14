@@ -169,48 +169,35 @@ app.get('/api/skills/public', async (req, res) => {
 // 🤖 AI Route: स्किल्स का विश्लेषण करके अगली बेस्ट स्किल का सुझाव पाना
 app.post('/api/ai-suggestions', protect, async (req, res) => {
     try {
-        // 1. डेटाबेस से सभी स्किल्स निकालें
         const skills = await Skill.find();
         
         if (!skills || skills.length === 0) {
             return res.json({ suggestion: "अभी आपके डैशबोर्ड में कोई स्किल नहीं है। कृपया पहले कुछ स्किल्स जोड़ें!" });
         }
 
-        // 2. स्किल्स को सादे टेक्स्ट फॉर्मेट में बदलें
         const skillListText = skills.map(s => `- ${s.name}`).join('\n');
 
-        // 3. जेमिनी पैकेज लोड करें
         const { GoogleGenerativeAI } = require('@google/generative-ai');
         
         if (!process.env.GEMINI_API_KEY) {
-            console.error("Error: GEMINI_API_KEY is missing in process.env");
             return res.status(500).json({ error: "सर्वर पर GEMINI_API_KEY सेट नहीं है।" });
         }
 
-       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         
-        // 🌟 मॉडल का नाम बदलकर 'gemini-pro' कर दें, यह इस वर्ज़न में बिल्कुल सही काम करेगा
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        // 🌟 वर्ज़न 0.24.1 के लिए बिना हाइफ़न वाला यह मॉडल नाम 100% काम करेगा
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" }); 
 
-        // 4. सिंपल और सटीक प्रॉम्प्ट
-        const prompt = `You are a career coach. Here is the list of tech skills:
-${skillListText}
-Suggest the top 2 highly relevant next tech skills to learn. Reply in clean, short, professional Hinglish (Hindi + English mix) within 3-4 bullet points.`;
+        const prompt = `You are an expert career coach. Here is the current list of IT skills:\n${skillListText}\n\nBased on these skills, suggest the top 2 highly relevant next tech skills to learn. Give your answer in clean, short, professional Hinglish (Hindi + English mix) within 3-4 bullet points.`;
 
-        // 5. कंटेंट जनरेट करें
         const result = await model.generateContent(prompt);
         
-        // 6. रिस्पॉन्स टेक्स्ट निकालें
-        let responseText = "सुझाव लोड करने में समस्या हुई।";
-        if (result && result.response) {
-            responseText = result.response.text();
-        }
+        // 🌟 रिस्पॉन्स निकालने का सबसे सटीक तरीका
+        const responseText = result.response.text;
 
-        res.json({ suggestion: responseText });
-
+        res.json({ suggestion: typeof responseText === 'function' ? responseText() : responseText });
     } catch (err) {
-        // 🌟 यह कंसोल रेंडर के Logs में असली गलती दिखाएगा
-        console.error('--- DETAILED GEMINI ERROR ---', err); 
+        console.error('Gemini AI Error:', err);
         res.status(500).json({ error: 'एआई से सुझाव प्राप्त करने में कुछ समस्या आई।' });
     }
 });
