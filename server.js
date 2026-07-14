@@ -171,9 +171,12 @@ app.post('/api/ai-suggestions', protect, async (req, res) => {
     try {
         const skills = await Skill.find();
         
+        // 🌟 यहाँ सुधार किया है: अगर स्किल नहीं है, तो यहीं से रिस्पॉन्स देकर फंक्शन खत्म (return) कर दें
         if (!skills || skills.length === 0) {
-            return res.json({ suggestion: "अभी आपके डैशबोर्ड में कोई स्किल नहीं है। कृपया पहले कुछ स्किल्स जोड़ें ताकि AI उनका विश्लेषण कर सके! 💡" });
+            return res.status(200).json({ suggestion: "अभी आपके डैशबोर्ड में कोई स्किल नहीं मिली या आपका टोकन सही से लोड नहीं हुआ। कृपया एक बार लॉगआउट करके दोबारा लॉगिन करें! 💡" });
         }
+
+        // ... बाकी का नीचे का कोड (skillListText, genAI वगैरह) वैसा ही रहेगा
 
         const skillListText = skills.map(s => `- ${s.name} (${s.category} - ${s.status})`).join('\n');
 
