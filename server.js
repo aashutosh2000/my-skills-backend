@@ -184,18 +184,16 @@ app.post('/api/ai-suggestions', protect, async (req, res) => {
         }
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        
-        // 🌟 वर्ज़न 0.24.1 के लिए बिना हाइफ़न वाला यह मॉडल नाम 100% काम करेगा
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" }); 
+        const model = genAI.getGenerativeModel({model: "gemini-2.5-flash"});
 
         const prompt = `You are an expert career coach. Here is the current list of IT skills:\n${skillListText}\n\nBased on these skills, suggest the top 2 highly relevant next tech skills to learn. Give your answer in clean, short, professional Hinglish (Hindi + English mix) within 3-4 bullet points.`;
 
         const result = await model.generateContent(prompt);
         
         // 🌟 रिस्पॉन्स निकालने का सबसे सटीक तरीका
-        const responseText = result.response.text;
+        const text = result.response.text();
 
-        res.json({ suggestion: typeof responseText === 'function' ? responseText() : responseText });
+        res.json({suggestion: text});
     } catch (err) {
         console.error('Gemini AI Error:', err);
         res.status(500).json({ error: 'एआई से सुझाव प्राप्त करने में कुछ समस्या आई।' });
