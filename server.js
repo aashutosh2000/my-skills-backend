@@ -192,7 +192,7 @@ app.post("/api/ai-suggestions", protect, async (req, res) => {
 
         // Model Name बाद में Final करेंगे
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash-lite"
+            model: "gemini-2.5-flash-preview-05-20"
         });
 
         const prompt = `
