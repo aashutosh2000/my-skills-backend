@@ -167,18 +167,62 @@ app.get('/api/skills/public', async (req, res) => {
 });
 
 // 🤖 AI Route: स्किल्स का विश्लेषण करके अगली बेस्ट स्किल का सुझाव पाना
+
 app.post('/api/ai-suggestions', protect, async (req, res) => {
     try {
-    const { GoogleGenerativeAI } = require("@google/generative-ai");
+        const skills = await Skill.find();
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        if (!skills.length) {
+            return res.json({
+                suggestion: "पहले कुछ skills add करें।"
+            });
+        }
 
-    const models = await genAI.listModels();
+        const skillList = skills.map(s => s.name).join(", ");
 
-    console.log(models);
-} catch (err) {
-    console.log(err);
-}});
+        const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash"
+        });
+
+        const prompt = `
+Current Skills:
+${skillList}
+
+Suggest top 3 next skills in Hinglish.
+`;
+
+        const result = await model.generateContent(prompt);
+
+        const text = result.response.text();
+
+        return res.json({
+            suggestion: text
+        });
+
+    } catch (err) {
+        console.error(err);
+
+        return res.status(500).json({
+            error: err.message
+        });
+    }
+});
+// app.post('/api/ai-suggestions', protect, async (req, res) => {
+//     try {
+//     const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+//     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+//     const models = await genAI.listModels();
+
+//     console.log(models);
+// } catch (err) {
+//     console.log(err);
+// }});
 //     try {
 //         const skills = await Skill.find();
         
