@@ -167,93 +167,68 @@ app.get('/api/skills/public', async (req, res) => {
 });
 
 // 🤖 AI Route: स्किल्स का विश्लेषण करके अगली बेस्ट स्किल का सुझाव पाना
-
-app.post('/api/ai-suggestions', protect, async (req, res) => {
+app.post("/api/ai-suggestions", protect, async (req, res) => {
     try {
+
         const skills = await Skill.find();
 
-        if (!skills.length) {
+        if (skills.length === 0) {
             return res.json({
-                suggestion: "पहले कुछ skills add करें।"
+                suggestion: "पहले कुछ Skills Add करें।"
             });
         }
 
-        const skillList = skills.map(s => s.name).join(", ");
+        const skillList = skills.map(skill => skill.name).join(", ");
 
         const { GoogleGenerativeAI } = require("@google/generative-ai");
 
+        if (!process.env.GEMINI_API_KEY) {
+            return res.status(500).json({
+                error: "GEMINI_API_KEY Missing"
+            });
+        }
+
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+        // Model Name बाद में Final करेंगे
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash"
+            model: "gemini-2.5-flash-lite"
         });
 
         const prompt = `
+You are an Expert Career Coach.
+
 Current Skills:
 ${skillList}
 
-Suggest top 3 next skills in Hinglish.
+Suggest only Top 3 Next Skills.
+
+Reply in Hinglish.
+
+Use bullet points only.
 `;
 
         const result = await model.generateContent(prompt);
 
-        const text = result.response.text();
+        const response = await result.response;
+
+        const text = response.text();
 
         return res.json({
             suggestion: text
         });
 
     } catch (err) {
-        console.error(err);
+
+        console.error("Gemini Error:", err);
 
         return res.status(500).json({
             error: err.message
         });
+
     }
 });
-// app.post('/api/ai-suggestions', protect, async (req, res) => {
-//     try {
-//     const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-//     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-//     const models = await genAI.listModels();
-
-//     console.log(models);
-// } catch (err) {
-//     console.log(err);
-// }});
-//     try {
-//         const skills = await Skill.find();
-        
-//         if (!skills || skills.length === 0) {
-//             return res.json({ suggestion: "अभी आपके डैशबोर्ड में कोई स्किल नहीं है। कृपया पहले कुछ स्किल्स जोड़ें!" });
-//         }
-
-//         const skillListText = skills.map(s => `- ${s.name}`).join('\n');
-
-//         const { GoogleGenerativeAI } = require('@google/generative-ai');
-        
-//         if (!process.env.GEMINI_API_KEY) {
-//             return res.status(500).json({ error: "सर्वर पर GEMINI_API_KEY सेट नहीं है।" });
-//         }
-
-//         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-//         const model = genAI.getGenerativeModel({model: "gemini-2.5-flash"});
-
-//         const prompt = `You are an expert career coach. Here is the current list of IT skills:\n${skillListText}\n\nBased on these skills, suggest the top 2 highly relevant next tech skills to learn. Give your answer in clean, short, professional Hinglish (Hindi + English mix) within 3-4 bullet points.`;
-
-//         const result = await model.generateContent(prompt);
-        
-//         // 🌟 रिस्पॉन्स निकालने का सबसे सटीक तरीका
-//         const text = result.response.text();
-
-//         res.json({suggestion: text});
-//     } catch (err) {
-//         console.error('Gemini AI Error:', err);
-//         res.status(500).json({ error: 'एआई से सुझाव प्राप्त करने में कुछ समस्या आई।' });
-//     }
-// });
 
 // सर्वर को चालू करें
 app.listen(PORT, () => {
