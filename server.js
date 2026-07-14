@@ -169,37 +169,46 @@ app.get('/api/skills/public', async (req, res) => {
 // 🤖 AI Route: स्किल्स का विश्लेषण करके अगली बेस्ट स्किल का सुझाव पाना
 app.post('/api/ai-suggestions', protect, async (req, res) => {
     try {
+        // 1. डेटाबेस से सभी स्किल्स निकालें
         const skills = await Skill.find();
         
-        // 🌟 यहाँ सुधार किया है: अगर स्किल नहीं है, तो यहीं से रिस्पॉन्स देकर फंक्शन खत्म (return) कर दें
         if (!skills || skills.length === 0) {
-            return res.status(200).json({ suggestion: "अभी आपके डैशबोर्ड में कोई स्किल नहीं मिली या आपका टोकन सही से लोड नहीं हुआ। कृपया एक बार लॉगआउट करके दोबारा लॉगिन करें! 💡" });
+            return res.json({ suggestion: "अभी आपके डैशबोर्ड में कोई स्किल नहीं है। कृपया पहले कुछ स्किल्स जोड़ें!" });
         }
 
-        // ... बाकी का नीचे का कोड (skillListText, genAI वगैरह) वैसा ही रहेगा
+        // 2. स्किल्स को सादे टेक्स्ट फॉर्मेट में बदलें
+        const skillListText = skills.map(s => `- ${s.name}`).join('\n');
 
-        const skillListText = skills.map(s => `- ${s.name} (${s.category} - ${s.status})`).join('\n');
-
-        // 🌟 आपके पैकेज वर्ज़न (0.24.1) के लिए बिल्कुल सही और सटीक सिंटैक्स
+        // 3. जेमिनी पैकेज लोड करें
         const { GoogleGenerativeAI } = require('@google/generative-ai');
         
         if (!process.env.GEMINI_API_KEY) {
+            console.error("Error: GEMINI_API_KEY is missing in process.env");
             return res.status(500).json({ error: "सर्वर पर GEMINI_API_KEY सेट नहीं है।" });
         }
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        const prompt = `You are an expert MERN stack tech lead and career coach. Here is the current list of IT skills of candidate Ashutosh:\n${skillListText}\n\nBased on these skills, analyze the gaps and strictly suggest the top 2 highly relevant next tech skills he must learn in 2026 to get a high-paying software engineer job. Give your answer in clean, short, professional Hinglish (Hindi + English mix) within 4-5 bullet points. Keep it super actionable.`;
+        // 4. सिंपल और सटीक प्रॉम्प्ट
+        const prompt = `You are a career coach. Here is the list of tech skills:
+${skillListText}
+Suggest the top 2 highly relevant next tech skills to learn. Reply in clean, short, professional Hinglish (Hindi + English mix) within 3-4 bullet points.`;
 
+        // 5. कंटेंट जनरेट करें
         const result = await model.generateContent(prompt);
         
-        // 🌟 रिस्पॉन्स टेक्स्ट निकालने का सही तरीका
-        const responseText = result.response.text();
+        // 6. रिस्पॉन्स टेक्स्ट निकालें
+        let responseText = "सुझाव लोड करने में समस्या हुई।";
+        if (result && result.response) {
+            responseText = result.response.text();
+        }
 
         res.json({ suggestion: responseText });
+
     } catch (err) {
-        console.error('Gemini AI Error:', err);
+        // 🌟 यह कंसोल रेंडर के Logs में असली गलती दिखाएगा
+        console.error('--- DETAILED GEMINI ERROR ---', err); 
         res.status(500).json({ error: 'एआई से सुझाव प्राप्त करने में कुछ समस्या आई।' });
     }
 });
