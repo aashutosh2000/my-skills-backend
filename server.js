@@ -177,16 +177,29 @@ app.post('/api/ai-suggestions', protect, async (req, res) => {
 
         const skillListText = skills.map(s => `- ${s.name} (${s.category} - ${s.status})`).join('\n');
 
-        const { GoogleGenerativeAI } = require('@google/generative-ai');
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        // 🌟 सबसे सुरक्षित इम्पोर्ट तरीका
+        const generativeAiPackage = require('@google/generative-ai');
+        // अगर GoogleGenerativeAI क्लास है तो वो लें, नहीं तो सीधे पैकेज को ही कंस्ट्रक्टर मान लें
+        const TargetClass = generativeAiPackage.GoogleGenerativeAI || generativeAiPackage.GoogleGenAI || generativeAiPackage;
+        
+        if (!process.env.GEMINI_API_KEY) {
+            return res.status(500).json({ error: "Render पर GEMINI_API_KEY सेट नहीं है।" });
+        }
+
+        const genAI = new TargetClass(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const prompt = `You are an expert MERN stack tech lead and career coach. Here is the current list of IT skills of candidate Ashutosh:\n${skillListText}\n\nBased on these skills, analyze the gaps and strictly suggest the top 2 highly relevant next tech skills he must learn in 2026 to get a high-paying software engineer job. Give your answer in clean, short, professional Hinglish (Hindi + English mix) within 4-5 bullet points. Keep it super actionable.`;
 
         const result = await model.generateContent(prompt);
         
-        // 🌟 यहाँ सबसे सही तरीका इस्तेमाल किया है: await के साथ text() फंक्शन कॉल किया है
-        const responseText = await result.response.text(); 
+        // 🌟 रिस्पॉन्स टेक्स्ट निकालने का बुलेटप्रूफ तरीका
+        let responseText = "";
+        if (result.response) {
+            responseText = typeof result.response.text === 'function' ? await result.response.text() : result.response.text;
+        } else {
+            responseText = typeof result.text === 'function' ? await result.text() : result.text;
+        }
 
         res.json({ suggestion: responseText });
     } catch (err) {
