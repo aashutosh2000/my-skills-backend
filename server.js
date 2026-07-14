@@ -105,11 +105,11 @@ app.delete('/api/skills/:id', protect, async (req, res) => {
 // 🔄 UPDATE Route: अब यह स्किल का नाम, कैटेगरी और स्टेटस तीनों चीज़ें अपडेट कर सकता है!
 app.put('/api/skills/:id', protect, async (req, res) => {
     try {
-        const { name, status, category } = req.body; // 📦 रिक्वेस्ट बॉडी से तीनों डेटा निकाला
+        const { name, status, category } = req.body; 
         
         const updatedSkill = await Skill.findByIdAndUpdate(
             req.params.id, 
-            { name, status, category }, // 👈 यहाँ अब तीनों चीज़ें डेटाबेस में अपडेट होंगी
+            { name, status, category }, 
             { new: true }
         );
         
@@ -172,34 +172,27 @@ app.post('/api/ai-suggestions', protect, async (req, res) => {
         const skills = await Skill.find();
         
         if (!skills || skills.length === 0) {
-            return res.json({ suggestion: "अभी आपके डैशबोर्ड में कोई स्किल नहीं है। कृपया पहले कुछ स्किल्स जोड़ें ताकि AI उनका विश्लेषण कर सके! 💡" });
+            return res.json({ suggestion: "अभी आपके डैशबोर्ड में कोई स्किल नहीं है। कृपया पहले कुछ स्किल्स जोड़ें ताकि AI उनका विश्लेषण कर सके! 💡" });
         }
 
         const skillListText = skills.map(s => `- ${s.name} (${s.category} - ${s.status})`).join('\n');
 
-        // 🌟 सबसे सुरक्षित इम्पोर्ट तरीका
-        const generativeAiPackage = require('@google/generative-ai');
-        // अगर GoogleGenerativeAI क्लास है तो वो लें, नहीं तो सीधे पैकेज को ही कंस्ट्रक्टर मान लें
-        const TargetClass = generativeAiPackage.GoogleGenerativeAI || generativeAiPackage.GoogleGenAI || generativeAiPackage;
+        // 🌟 आपके पैकेज वर्ज़न (0.24.1) के लिए बिल्कुल सही और सटीक सिंटैक्स
+        const { GoogleGenerativeAI } = require('@google/generative-ai');
         
         if (!process.env.GEMINI_API_KEY) {
-            return res.status(500).json({ error: "Render पर GEMINI_API_KEY सेट नहीं है।" });
+            return res.status(500).json({ error: "सर्वर पर GEMINI_API_KEY सेट नहीं है।" });
         }
 
-        const genAI = new TargetClass(process.env.GEMINI_API_KEY);
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const prompt = `You are an expert MERN stack tech lead and career coach. Here is the current list of IT skills of candidate Ashutosh:\n${skillListText}\n\nBased on these skills, analyze the gaps and strictly suggest the top 2 highly relevant next tech skills he must learn in 2026 to get a high-paying software engineer job. Give your answer in clean, short, professional Hinglish (Hindi + English mix) within 4-5 bullet points. Keep it super actionable.`;
 
         const result = await model.generateContent(prompt);
         
-        // 🌟 रिस्पॉन्स टेक्स्ट निकालने का बुलेटप्रूफ तरीका
-        let responseText = "";
-        if (result.response) {
-            responseText = typeof result.response.text === 'function' ? await result.response.text() : result.response.text;
-        } else {
-            responseText = typeof result.text === 'function' ? await result.text() : result.text;
-        }
+        // 🌟 रिस्पॉन्स टेक्स्ट निकालने का सही तरीका
+        const responseText = result.response.text();
 
         res.json({ suggestion: responseText });
     } catch (err) {
