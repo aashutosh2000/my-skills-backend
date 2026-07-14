@@ -187,8 +187,10 @@ app.post('/api/ai-suggestions', protect, async (req, res) => {
             return res.status(500).json({ error: "सर्वर पर GEMINI_API_KEY सेट नहीं है।" });
         }
 
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        
+        // 🌟 मॉडल का नाम बदलकर 'gemini-pro' कर दें, यह इस वर्ज़न में बिल्कुल सही काम करेगा
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
         // 4. सिंपल और सटीक प्रॉम्प्ट
         const prompt = `You are a career coach. Here is the list of tech skills:
