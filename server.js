@@ -169,36 +169,47 @@ app.get('/api/skills/public', async (req, res) => {
 // 🤖 AI Route: स्किल्स का विश्लेषण करके अगली बेस्ट स्किल का सुझाव पाना
 app.post('/api/ai-suggestions', protect, async (req, res) => {
     try {
-        const skills = await Skill.find();
+    const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+    const models = await genAI.listModels();
+
+    console.log(models);
+} catch (err) {
+    console.log(err);
+}});
+//     try {
+//         const skills = await Skill.find();
         
-        if (!skills || skills.length === 0) {
-            return res.json({ suggestion: "अभी आपके डैशबोर्ड में कोई स्किल नहीं है। कृपया पहले कुछ स्किल्स जोड़ें!" });
-        }
+//         if (!skills || skills.length === 0) {
+//             return res.json({ suggestion: "अभी आपके डैशबोर्ड में कोई स्किल नहीं है। कृपया पहले कुछ स्किल्स जोड़ें!" });
+//         }
 
-        const skillListText = skills.map(s => `- ${s.name}`).join('\n');
+//         const skillListText = skills.map(s => `- ${s.name}`).join('\n');
 
-        const { GoogleGenerativeAI } = require('@google/generative-ai');
+//         const { GoogleGenerativeAI } = require('@google/generative-ai');
         
-        if (!process.env.GEMINI_API_KEY) {
-            return res.status(500).json({ error: "सर्वर पर GEMINI_API_KEY सेट नहीं है।" });
-        }
+//         if (!process.env.GEMINI_API_KEY) {
+//             return res.status(500).json({ error: "सर्वर पर GEMINI_API_KEY सेट नहीं है।" });
+//         }
 
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({model: "gemini-2.5-flash"});
+//         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+//         const model = genAI.getGenerativeModel({model: "gemini-2.5-flash"});
 
-        const prompt = `You are an expert career coach. Here is the current list of IT skills:\n${skillListText}\n\nBased on these skills, suggest the top 2 highly relevant next tech skills to learn. Give your answer in clean, short, professional Hinglish (Hindi + English mix) within 3-4 bullet points.`;
+//         const prompt = `You are an expert career coach. Here is the current list of IT skills:\n${skillListText}\n\nBased on these skills, suggest the top 2 highly relevant next tech skills to learn. Give your answer in clean, short, professional Hinglish (Hindi + English mix) within 3-4 bullet points.`;
 
-        const result = await model.generateContent(prompt);
+//         const result = await model.generateContent(prompt);
         
-        // 🌟 रिस्पॉन्स निकालने का सबसे सटीक तरीका
-        const text = result.response.text();
+//         // 🌟 रिस्पॉन्स निकालने का सबसे सटीक तरीका
+//         const text = result.response.text();
 
-        res.json({suggestion: text});
-    } catch (err) {
-        console.error('Gemini AI Error:', err);
-        res.status(500).json({ error: 'एआई से सुझाव प्राप्त करने में कुछ समस्या आई।' });
-    }
-});
+//         res.json({suggestion: text});
+//     } catch (err) {
+//         console.error('Gemini AI Error:', err);
+//         res.status(500).json({ error: 'एआई से सुझाव प्राप्त करने में कुछ समस्या आई।' });
+//     }
+// });
 
 // सर्वर को चालू करें
 app.listen(PORT, () => {
