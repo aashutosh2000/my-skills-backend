@@ -221,6 +221,7 @@ Use bullet points only.
     } catch (err) {
 
         console.error("Gemini Error:", err);
+        console.error(err.stack);
 
         return res.status(500).json({
             error: err.message
